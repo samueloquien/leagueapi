@@ -10,7 +10,8 @@ app = FastAPI()
 @app.on_event("startup")
 def startup_db_client():
     print('Ready to start mongodb client')
-    app.mongodb_client = MongoClient(config["ATLAS_URI"])
+    app.mongodb_client = MongoClient(config["ATLAS_URI"],
+        tls=True, tlsAllowInvalidCertificates=True)
     app.database = app.mongodb_client[config["DB_NAME"]]
     print('Connected to db', app.database)
 
