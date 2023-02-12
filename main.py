@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from dotenv import dotenv_values
 from pymongo import MongoClient
-from routes import book_router, user_router
+from routers import users
 
 config = dotenv_values(".env")
 
@@ -20,6 +20,5 @@ def shutdown_db_client():
     print('Closing client')
     app.mongodb_client.close()
 
-app.include_router(book_router, tags=["books"], prefix="/book")
-app.include_router(user_router, tags=["users"], prefix="/user")
+app.include_router(users.router, tags=["users"], prefix="/users")
 
