@@ -9,6 +9,7 @@ class User(BaseModel):
     email: str = Field(...)
     password: str = Field(...)
     alias: str = Field(...)
+    is_active: bool = True
     is_admin: bool = False
 
     class Config:
@@ -19,7 +20,9 @@ class User(BaseModel):
                 "last_name": "Parker",
                 "email": "spiderman@marvel.org",
                 "password": "53cr3t-w0rd",
-                "alias": "spiderman"
+                "alias": "spiderman",
+                "is_active": True,
+                "is_admin": False
             }
         }
 
@@ -29,6 +32,7 @@ class UserUpdate(BaseModel):
     email: Optional[str]
     password: Optional[str]
     alias: Optional[str]
+    is_active: Optional[bool]
     is_admin: Optional[bool]
 
     class Config:
@@ -38,7 +42,9 @@ class UserUpdate(BaseModel):
                 "last_name": "Parker",
                 "email": "spiderman@marvel.org",
                 "password": "53cr3t-w0rd",
-                "alias": "spiderman"
+                "alias": "spiderman",
+                "is_active": True,
+                "is_admin": False
             }
         }
 
