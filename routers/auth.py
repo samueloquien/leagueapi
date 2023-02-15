@@ -30,55 +30,14 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
-
 class TokenData(BaseModel):
     uuid: Optional[str] = None
-
-
-'''
-class User(BaseModel):
-    username: str
-    email: Optional[str] = None
-    full_name: Optional[str] = None
-    disabled: Optional[bool] = None
-
-
-class UserInDB(User):
-    hashed_password: str
-'''
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 router = APIRouter()
-
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
-
-def get_user(db, _id: Optional[str] = None, email: Optional[str] = None) -> User:
-    user = None
-    if _id is not None:
-        user = db["users"].find_one({"_id": id})
-    if email is not None:
-        user = db["users"].find_one({"email": email})
-    if user:
-        return User(**user)
-
-
-def authenticate_user(db, email: str, password: str):
-    user : User = get_user(db, email=email)
-    if not user:
-        return False
-    if not verify_password(password, user.password):
-        return False
-    return user
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -92,7 +51,34 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
-async def get_current_user(db, token: str = Depends(oauth2_scheme)) -> User:
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def authenticate_user(db, email: str, password: str):
+    user : dict = get_user(db, email=email)
+    if not user:
+        return False
+    if not verify_password(password, user["password"]):
+        return False
+    return user
+
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+
+
+def get_user(db, _id: Optional[str] = None, email: Optional[str] = None):
+    user = []
+    if _id is not None:
+        user = db["users"].find_one({"_id": _id})
+    if email is not None:
+        user = db["users"].find_one({"email": email})
+    return user
+
+
+
+async def get_current_user(db, token: str):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -100,12 +86,12 @@ async def get_current_user(db, token: str = Depends(oauth2_scheme)) -> User:
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        uuid: str = payload.get("uuid")
-        if uuid is None:
+        uid: str = payload.get("uuid")
+        if uid is None:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    user = get_user(db, _id=uuid)
+    user = get_user(db, _id=uid)
     if user is None:
         raise credentials_exception
     return user
@@ -133,35 +119,11 @@ async def login_for_access_token(request: Request, form_data: OAuth2PasswordRequ
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"uuid": user.id}, expires_delta=access_token_expires
+        data={"uuid": user["_id"]}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-async def test_dependency_params(ppp:str="") -> str:
-    newstr : str = ppp+'-verified'
-    return newstr
-
-
-@router.get("/users/me/", response_model=User)
-async def read_users_me(request:Request, converted=Depends(test_dependency_params), ppp:str='hi'):
-    #current_user: User = get_current_user(request.app.database)
-    original_param : str = ppp
-    converted_param : str = converted
-    u = {
-        "_id": str(uuid.uuid4()),
-        "name": "Peter",
-        "last_name": "Parker",
-        "email": "spiderman@marvel.org",
-        "password": "53cr3t-w0rd",
-        "alias": "spiderman",
-        "is_active": True,
-        "is_admin": False
-    }
-    current_user = User(**u)
-    return current_user
-
-
-'''@router.get("/users/me/items/")
-async def read_own_items(current_user: User = Depends(get_current_active_user)):
-    return [{"item_id": "Foo", "owner": current_user.username}]
-'''
+@router.get("/users/me/", response_model=User, response_model_exclude={"password"})
+async def read_users_me(request:Request, token: str = Depends(oauth2_scheme)):
+    current_user = await get_current_user(request.app.database, token)
+    return  current_user
