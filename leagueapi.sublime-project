@@ -1,0 +1,20 @@
+{
+	"folders":
+	[
+		{
+			"path": ".",
+		}
+	],
+	"debugger_configurations":
+	[
+		{
+			"name": "Python Uvicorn reload",
+			"type": "python",
+			"request": "launch",
+			"module": "uvicorn",
+			"python": "C:/Users/samue/.virtualenvs/leagueapi-XMYQYSMV/Scripts/python.exe",
+			"args": ["main:app", "--reload"],
+			"cwd": "C:/samuel/repos/leagueapi"
+		}
+	],
+}

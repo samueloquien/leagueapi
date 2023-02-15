@@ -7,8 +7,11 @@ name = "pypi"
 fastapi = {extras = ["all"], version = "*"}
 pymongo = {extras = ["srv"], version = "*"}
 python-dotenv = "*"
+python-jose = "*"
+passlib = {extras = ["bcrypt"], version = "*"}
+pipfile = "*"
 
 [dev-packages]
 
 [requires]
-python_version = "3.10"
+python_version = "3.9"
