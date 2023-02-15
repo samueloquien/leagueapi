@@ -6,6 +6,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from models import User
+import json, uuid
 
 # to get a string like this run:
 # openssl rand -hex 32
@@ -50,7 +51,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-auth_router = APIRouter()
+router = APIRouter()
 
 
 def verify_password(plain_password, hashed_password):
@@ -61,19 +62,18 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 
-def get_user(db, _id: Optional[str], email: Optional[str]):
+def get_user(db, _id: Optional[str] = None, email: Optional[str] = None) -> User:
+    user = None
     if _id is not None:
-        return db["users"].find_one({"_id": id})
+        user = db["users"].find_one({"_id": id})
     if email is not None:
-        return db["users"].find_one({"email": email})
-'''
-    if username in db:
-        user_dict = db[username]
-        return UserInDB(**user_dict)'''
+        user = db["users"].find_one({"email": email})
+    if user:
+        return User(**user)
 
 
 def authenticate_user(db, email: str, password: str):
-    user = get_user(db, email=email)
+    user : User = get_user(db, email=email)
     if not user:
         return False
     if not verify_password(password, user.password):
@@ -92,7 +92,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user(db, token: str = Depends(oauth2_scheme)) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -105,7 +105,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    user = get_user(fake_users_db, uuid=uuid)
+    user = get_user(db, _id=uuid)
     if user is None:
         raise credentials_exception
     return user
@@ -122,7 +122,7 @@ async def get_current_admin_user(current_user: User = Depends(get_current_user))
     return current_user
 
 
-@auth_router.post("/token", response_model=Token)
+@router.post("/token", response_model=Token)
 async def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     user = authenticate_user(request.app.database, form_data.username, form_data.password)
     if not user:
@@ -133,17 +133,35 @@ async def login_for_access_token(request: Request, form_data: OAuth2PasswordRequ
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"uuid": user.uuid}, expires_delta=access_token_expires
+        data={"uuid": user.id}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
+async def test_dependency_params(ppp:str="") -> str:
+    newstr : str = ppp+'-verified'
+    return newstr
 
-@auth_router.get("/users/me/", response_model=User)
-async def read_users_me(current_user: User = Depends(get_current_active_user)):
+
+@router.get("/users/me/", response_model=User)
+async def read_users_me(request:Request, converted=Depends(test_dependency_params), ppp:str='hi'):
+    #current_user: User = get_current_user(request.app.database)
+    original_param : str = ppp
+    converted_param : str = converted
+    u = {
+        "_id": str(uuid.uuid4()),
+        "name": "Peter",
+        "last_name": "Parker",
+        "email": "spiderman@marvel.org",
+        "password": "53cr3t-w0rd",
+        "alias": "spiderman",
+        "is_active": True,
+        "is_admin": False
+    }
+    current_user = User(**u)
     return current_user
 
 
-@auth_router.get("/users/me/items/")
+'''@router.get("/users/me/items/")
 async def read_own_items(current_user: User = Depends(get_current_active_user)):
     return [{"item_id": "Foo", "owner": current_user.username}]
-
+'''
